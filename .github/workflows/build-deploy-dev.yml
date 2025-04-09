@@ -1,0 +1,33 @@
+name: DEV - Deploy - Cloud Run
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: google-github-actions/setup-gcloud@v0.6.0
+      - uses: google-github-actions/auth@v0
+        with:
+          credentials_json: ${{ secrets.GCR_KEY_DEV }}
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker
+      - name: Build and Push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/${{ github.event.repository.name }}:${{ github.sha }}
+          build-args: |
+            "GITHUB_TOKEN=${{ secrets.TOKEN }}"
+      - name: Deploy
+        uses: google-github-actions/deploy-cloudrun@v0
+        with:
+          service: ${{ github.event.repository.name }}
+          project_id: ${{ secrets.GCP_PROJECT_ID_DEV}}
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID_DEV}}/${{ github.event.repository.name }}:${{ github.sha }}
